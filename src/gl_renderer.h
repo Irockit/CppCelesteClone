@@ -1,7 +1,7 @@
 #pragma once
 
 #include "glcorearb.h"
-#include "game_lib.h"
+#include "engine_lib.h"
 #include "platform.h"
 
 //#####################################################################################################################################

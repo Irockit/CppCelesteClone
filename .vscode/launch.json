@@ -5,7 +5,7 @@
             "name": "Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/game",
+            "program": "${workspaceFolder}/engine",
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"

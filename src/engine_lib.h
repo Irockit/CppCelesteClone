@@ -10,13 +10,20 @@
 
 #ifdef _WIN32
 #define DEBUG_BREAK() __debugbreak()
+#define EXPORT_FN __declspec(dllexport)
 #elif __linux__
 #define DEBUGBREAK() __builtin_debugtrap()
+#define EXPORT_FN
 #elif __APPLE__
 #define DEBUGBREAK() __builtin_trap()
+#define EXPORT_FN 
 #endif
 
-
+#define b8 char
+#define BIT(x) 1<<(x)
+#define KB(x) ((unsigned long long)1024 * x)
+#define MB(x) ((unsigned long long)1024 * KB(x))
+#define GB(x) ((unsigned long long)1024 * MB(x))
 //#####################################################################################################################################
 //                                                  Logging
 //#####################################################################################################################################
@@ -37,7 +44,7 @@ void _log(char* prefix, char* msg, TextColor textColor, Args ...args){
     char formatBuffer[8192] = {};
     sprintf(formatBuffer, "%s %s %s \033[0m", TextColorTable[textColor], prefix, msg);
     char textBuffer[8192] = {};
-    sprintf(textBuffer, "%s", formatBuffer, args...);
+    sprintf(textBuffer, formatBuffer, args...);
     puts(textBuffer);
 }
 
@@ -48,21 +55,46 @@ void _log(char* prefix, char* msg, TextColor textColor, Args ...args){
 #define SM_ERROR(msg, ...) _log("ERROR: ", msg, TEXT_COLOR_RED, ##__VA_ARGS__);
 
 
-#define SM_ASSERT(x, msg, ...){       \
-    if((!x)) {                        \
+#define SM_ASSERT(x, msg, ...)      \
+    if(!(x)) {                        \
         SM_ERROR(msg, ##__VA_ARGS__); \
         DEBUG_BREAK();                \
-        SM_ERROR("Assertion HIT!")    \
-    }                                 \
-}
+        SM_ERROR("Assertion HIT!");    \
+    }                                 
 
-#define SM_ASSERT_GUARD(x, msg, ret, ...){  \
-    if (!x){                           \
-        SM_ASSERT(false, msg);        \
+
+#define SM_ASSERT_GUARD(x, ret, msg, ...)  \
+    if (!(x)){                           \
+        SM_ASSERT(false, msg, ##__VA_ARGS__);        \
         return ret;                   \
-    }                                 \
-}
+    }                                 
+//#####################################################################################################################################
+//                                                  Array
+//#####################################################################################################################################
+template<typename T, int N>
+struct Array{
+    static constexpr int maxElements = N;
+    int count = 0;
+    T elements[N];
 
+    T& operator[](int idx){
+        SM_ASSERT(idx >= 0, "index is negative!");
+        SM_ASSERT(idx < count, "index is out of bounds");
+        return elements[idx];
+    }
+    int add(T element){
+        SM_ASSERT(count < maxElements, "Array is full");
+        elements[count] = element;
+        return count++;
+    }
+    void remove_idx_and_swap(int idx){
+        SM_ASSERT(idx >=0, "index is negative");
+        SM_ASSERT(idx < count, "index is out of bounds");
+        element[idx] = element[--count];
+    }
+    void clear(){ count = 0; }
+    bool is_full(){ return count ==N; }
+};
 //#####################################################################################################################################
 //                                                  Bump Allocator
 //#####################################################################################################################################
@@ -85,7 +117,7 @@ char* bump_alloc(BumpAllocator* bumpAllocator, size_t size){
     char* result = nullptr;
 
     size_t allignedSize = (size + 7) & ~ 7;
-    SM_ASSERT(bumpAllocator->used + allignedSize > bumpAllocator->capacity, "Bump Allocator is full");
+    SM_ASSERT(bumpAllocator->used + allignedSize <= bumpAllocator->capacity, "Bump Allocator is full");
     result = bumpAllocator->memory + bumpAllocator->used;
     bumpAllocator->used += allignedSize;
     return result;
@@ -120,6 +152,7 @@ long get_file_size(char* filepath){
     fseek(file, 0, SEEK_END);
     fileSize = ftell(file);
     fseek(file, 0, SEEK_SET);
+    fclose(file);
     return fileSize;
 }
 
@@ -145,7 +178,7 @@ char* read_file(char* filepath, int* fileSize, char* buffer){
 char* read_file(char* filepath, int* fileSize, BumpAllocator* bumpAllocator){
     char* file = nullptr;
     long _fileSize = get_file_size(filepath);
-    if (_fileSize) return file;
+    if (!_fileSize) return file;
     char* buffer = bump_alloc(bumpAllocator, _fileSize + 1);
     file = read_file(filepath, fileSize, buffer);
     return file;
@@ -182,9 +215,69 @@ bool copy_file(char* filename, char* outputName, char* buffer){
 }
 
 bool copy_file(char* filename, char* outputName, BumpAllocator* bumpAllocator){
-    char* file = nullptr;
+    char* file = 0;
     long _fileSize = get_file_size(filename);
     if(!_fileSize) return false;
     char* buffer = bump_alloc(bumpAllocator, _fileSize+1);
     return copy_file(filename, outputName, buffer);
+}
+
+
+//#####################################################################################################################################
+//                                                  Math stuff
+//#####################################################################################################################################
+
+struct Vec2{ 
+    float x, y; 
+    Vec2 operator/(float scalar){ return {x / scalar, y / scalar};}
+    Vec2 operator-(Vec2 other){return {x - other.x, y - other.y};}
+};
+
+struct IVec2{ 
+    int x, y;
+    IVec2 operator-(IVec2 other){return {x - other.x, y - other.y};}
+};
+Vec2 vec_2(IVec2 v) {return Vec2{(float)v.x, (float)v.y};}
+
+struct Vec3{
+    union{
+        float values[3];
+        struct{ float x, y, z; };
+        struct{ float r, g, b; };
+    };
+    float& operator[] (int idx){ return values[idx];}
+};
+
+struct Vec4{
+    union{
+        float values[4];
+        struct{ float x, y, z, w; };
+        struct{ float r, g, b, a; };
+    };
+    float& operator[] (int idx){ return values[idx];}
+};
+
+struct Mat4{
+    union{
+        Vec4 values[4];
+        struct{
+            float ax, bx, cx, dx;
+            float ay, by, cy, dy;
+            float az, bz, cz, dz;
+            float aw, bw, cw, dw;
+        };
+    };
+    Vec4& operator[] (int idx){ return values[idx];}
+};
+
+Mat4 orthographic_projection(float left, float right, float top, float bottom){
+    Mat4 result = {};
+    result.aw = -(right + left) / (right - left);
+    result.bw = (top + bottom) / (top - bottom);
+    result.cw = 0.0f;
+    result[0][0] = 2.0f / (right - left);
+    result[1][1] = 2.0f / (top - bottom);
+    result[2][2] = 1.0f / (1.0f - 0.0f);
+    result[3][3] = 1.0f;
+    return result;
 }
