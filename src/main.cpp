@@ -39,14 +39,14 @@ int main(){
     SM_ASSERT_GUARD(renderData, -1, "Failed to allocate RenderData");
 
     platform_fill_keycode_lookup_table();
-    platform_create_window(1280, 640, "Game");
+    platform_create_window(1280, 720, "Game");
 
     gl_init(&transientStorage);
     while (running){
         reload_game_dll(&transientStorage);
         platform_update_window();
         update_game(gameState, renderData, input);
-        gl_render();
+        gl_render(&transientStorage);
         platform_swap_buffers();
 
         transientStorage.used = 0;

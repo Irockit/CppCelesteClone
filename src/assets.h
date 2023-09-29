@@ -8,6 +8,7 @@
 //                                                  Assets Structs
 //#####################################################################################################################################
 enum SpriteID{
+    SPRITE_WHITE,
     SPRITE_DICE,
 
     SPRITE_COUNT
@@ -24,9 +25,15 @@ Sprite get_sprite(SpriteID spriteID){
     Sprite sprite = {};
     switch (spriteID)
     {
-        case SPRITE_DICE:{
+        case SPRITE_WHITE:{
             sprite.atlasOffset = {0, 0};
+            sprite.spriteSize = {1, 1};
+            break;
+        }
+        case SPRITE_DICE:{
+            sprite.atlasOffset = {16, 0};
             sprite.spriteSize = {16, 16};
+            break;
         }
     }
     return sprite;

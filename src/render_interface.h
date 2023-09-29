@@ -5,7 +5,7 @@
 //#####################################################################################################################################
 //                                                  Renderer Constants
 //#####################################################################################################################################
-constexpr int MAX_TRANSFORMS = 1000;
+
 //#####################################################################################################################################
 //                                                  Renderer Structs
 //#####################################################################################################################################
@@ -25,8 +25,7 @@ struct Transform {
 struct RenderData{
     OrthographicCamera2D gameCamera;
     OrthographicCamera2D uiCamera;
-    int transformCount;
-    Transform transforms[MAX_TRANSFORMS];
+    Array<Transform, 1000> transforms;
 };
 
 //#####################################################################################################################################
@@ -48,6 +47,17 @@ IVec2 screen_to_world(IVec2 screenPos){
 //#####################################################################################################################################
 //                                                  Renderer Functions
 //#####################################################################################################################################
+void draw_quad(Transform transform){ renderData->transforms.add(transform);}
+
+void draw_quad(Vec2 pos, Vec2 size){
+    Transform transform = {};
+    transform.pos = pos - size /2.0f;
+    transform.size = size;
+    transform.atlasOffset = {0, 0};
+    transform.spriteSize = {1, 1};
+    draw_quad(transform);
+}
+
 void draw_sprite(SpriteID spriteID, Vec2 pos){
     Sprite sprite = get_sprite(spriteID);
     Transform transform = {};
@@ -55,9 +65,10 @@ void draw_sprite(SpriteID spriteID, Vec2 pos){
     transform.pos = pos - vec_2(sprite.spriteSize) / 2.0f;
     transform.atlasOffset = sprite.atlasOffset;
     transform.spriteSize = sprite.spriteSize;
-    renderData->transforms[renderData->transformCount++] = transform;
+    draw_quad(transform);
 }
 
 void draw_sprite(SpriteID spriteID, IVec2 pos){
     draw_sprite(spriteID, vec_2(pos));
 }
+
